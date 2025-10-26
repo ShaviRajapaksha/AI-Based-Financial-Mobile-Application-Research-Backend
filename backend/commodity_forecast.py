@@ -23,21 +23,12 @@ commodity_bp = Blueprint("commodity_forecast", __name__, url_prefix="/api/invest
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "models", "commodities")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
-# Map common commodity symbols to yfinance tickers
+# simple map of friendly names to yfinance tickers (extend as required)
 SYMBOL_MAP = {
-    "GOLD": "GC=F",    # Gold futures 
-    "CRUDE": "CL=F",   # Crude Oil futures
-    "BRENT": "BZ=F",   # Brent Oil futures
-    "SILVER": "SI=F",   # Silver futures
-    "COPPER": "HG=F",   # Copper futures
-    "CORN": "ZC=F",     # Corn futures
-    "SOYBEAN": "ZS=F",  # Soybean futures
-    "SOYOIL": "ZL=F",   # Soybean Oil futures
-    "COCOA": "CC=F",    # Cocoa futures
-    "COFFEE": "KC=F",   # Coffee futures
-    "WHEAT": "ZW=F",    # Wheat futures
-    "COTTON": "CT=F",   # Cotton futures
-    "SUGAR": "SB=F",    # Sugar futures
+    "GOLD": "GC=F",    # Gold futures (COMEX)
+    "OIL": "CL=F",     # Crude Oil WTI futures
+    "WTI": "CL=F",
+    "BRENT": "BZ=F",   # Brent crude
 }
 
 log = logging.getLogger("commodity_forecast")
