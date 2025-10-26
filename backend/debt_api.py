@@ -4,6 +4,7 @@ import json
 import math
 import traceback
 import requests
+import logging
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, current_app, g
 from sqlalchemy import func, or_, case, Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean
@@ -13,17 +14,17 @@ from models import FinancialEntry, DebtPlan, DebtAlert, DebtBadge, DebtChatMessa
 from auth import token_required
 from apscheduler.schedulers.background import BackgroundScheduler
 
-
-
 debt_bp = Blueprint("debt", __name__, url_prefix="/api/debt")
 
 load_dotenv()
+
+# Set up logger for background tasks
+logger = logging.getLogger('debt_alerts')
 
 # Basic vendor keywords map
 COMMON_LENDERS = [
     "bank", "loan", "finance", "credit", "mortgage", "leasing", "Lanka", "HNB", "SAMP", "JKH", "LOLC"
 ]
-
 
 # ---------- Helpers ----------
 def _identify_debt_entries_for_user(db, user_id):
@@ -153,7 +154,6 @@ def debt_summary():
         })
     finally:
         db.close()
-
 
 
 # payoff calculator helper (amortization w/ interest if provided)
@@ -450,7 +450,7 @@ def _call_gemini(prompt: str, max_tokens=1000):
         r = requests.post(url, headers=headers, json=body, timeout=30)
 
         if r.status_code != 200:
-            logger.warning("Gemini API call failed: %s %s", r.status_code, r.text)
+            print(f"Gemini API call failed: {r.status_code} {r.text}")
             return None
             
         data = r.json()
@@ -467,7 +467,7 @@ def _call_gemini(prompt: str, max_tokens=1000):
         return msg
 
     except Exception as e:
-        logger.exception("Gemini API call error: %s", e)
+        print(f"Gemini API call error: {e}")
         return None
 
 
@@ -563,15 +563,6 @@ def debt_chat():
 # --------------------
 # Scheduler: mark due alerts as notified periodically
 # --------------------
-def _mark_alert_notified(db_session, alert_id):
-    a = db_session.get(DebtAlert, alert_id)
-    if not a:
-        return
-    a.last_notified_at = datetime.utcnow()
-    db_session.add(a)
-    db_session.commit()
-
-
 def _scan_and_mark_due_alerts():
     """
     Runs periodically (every minute) and marks alerts whose due_date <= now.
@@ -602,10 +593,10 @@ def _scan_and_mark_due_alerts():
             a.last_notified_at = now
             db.add(a)
             # optionally log / push via FCM here
-            current_app.logger.info("Marked alert %s as notified for user %s", a.id, a.user_id)
+            logger.info("Marked alert %s as notified for user %s", a.id, a.user_id)
         db.commit()
     except Exception as e:
-        current_app.logger.exception("scan_and_mark_due_alerts failed: %s", e)
+        logger.exception("scan_and_mark_due_alerts failed: %s", e)
     finally:
         try:
             db.close()
